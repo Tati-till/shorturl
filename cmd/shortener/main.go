@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
+	store "shorturl/internal/storage"
 )
 
 const (
@@ -13,11 +15,7 @@ const (
 	port = ":8080"
 )
 
-var storageURLs map[string]string
-
-func init() {
-	storageURLs = make(map[string]string)
-}
+var storageURLs store.Store
 
 func mainHandler(res http.ResponseWriter, req *http.Request) {
 	switch req.Method {
@@ -34,7 +32,11 @@ func mainHandler(res http.ResponseWriter, req *http.Request) {
 		}
 
 		hash := getHashFromURL(url)
-		storageURLs[hash] = string(url)
+		err = storageURLs.Set(hash, string(url))
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+			return
+		}
 
 		res.WriteHeader(http.StatusCreated)
 		body := fmt.Sprintf("%s%s/%s", host, port, hash)
@@ -53,9 +55,9 @@ func mainHandler(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		url, ok := storageURLs[input]
-		if !ok {
-			http.Error(res, "Can't find related URL", http.StatusBadRequest)
+		url, err := storageURLs.Get(input)
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
 			return
 		}
 		res.Header().Set("Location", url)
@@ -68,10 +70,17 @@ func mainHandler(res http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
+	var err error
+
+	storageURLs, err = store.NewStore()
+	if err != nil {
+		panic(err)
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc(`/`, mainHandler)
 
-	err := http.ListenAndServe(port, mux)
+	err = http.ListenAndServe(port, mux)
 	if err != nil {
 		panic(err)
 	}
