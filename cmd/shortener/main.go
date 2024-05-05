@@ -13,20 +13,21 @@ const (
 	port = ":8080"
 )
 
-var storageURLs store.Store
-
-func main() {
+func init() {
 	var err error
-
 	storageURLs, err = store.NewStore()
 	if err != nil {
 		panic(err)
 	}
+}
 
+var storageURLs store.Store
+
+func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc(`/`, mainHandler)
 
-	err = http.ListenAndServe(port, mux)
+	err := http.ListenAndServe(port, mux)
 	if err != nil {
 		panic(err)
 	}
