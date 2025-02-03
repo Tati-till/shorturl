@@ -30,7 +30,7 @@ func Test_mainHandler(t *testing.T) {
 		requests []request
 	}{
 		{
-			name: "positive POST&GET",
+			name: "positive POST&GET yandex",
 			requests: []request{
 				{
 					url:    "/",
@@ -53,6 +53,35 @@ func Test_mainHandler(t *testing.T) {
 						response:  "",
 						headerKey: "Location",
 						headerVal: "https://practicum.yandex.ru/",
+						failed:    false,
+					},
+				},
+			},
+		},
+		{
+			name: "positive POST&GET google",
+			requests: []request{
+				{
+					url:    "/",
+					method: http.MethodPost,
+					data:   "https://www.google.com/",
+					want: want{
+						code:      http.StatusCreated,
+						response:  "http://localhost:8080/0OGWoMJd",
+						headerKey: "Content-Type",
+						headerVal: "text/plain",
+						failed:    false,
+					},
+				},
+				{
+					url:    "/0OGWoMJd",
+					method: http.MethodGet,
+					data:   "",
+					want: want{
+						code:      http.StatusTemporaryRedirect,
+						response:  "",
+						headerKey: "Location",
+						headerVal: "https://www.google.com/",
 						failed:    false,
 					},
 				},
