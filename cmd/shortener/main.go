@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
 	store "shorturl/internal/storage"
 )
 
@@ -24,13 +25,33 @@ func init() {
 var storageURLs store.Store
 
 func main() {
-	mux := http.NewServeMux()
-	mux.HandleFunc(`/`, mainHandler)
-
-	err := http.ListenAndServe(port, mux)
+	err := http.ListenAndServe(port, mainRouter())
 	if err != nil {
 		panic(err)
 	}
+}
+
+func mainRouter() chi.Router {
+	r := chi.NewRouter()
+
+	// Custom handler for unsupported routes
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+	})
+
+	// Custom handler for unsupported methods
+	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+	})
+
+	r.Route("/", func(r chi.Router) {
+		r.Post("/", generateURL) // POST /
+		r.Route("/{id}", func(r chi.Router) {
+			r.Get("/", getURL) // GET /EwHXdJfB
+		})
+	})
+
+	return r
 }
 
 func getHashFromURL(url []byte) string {
