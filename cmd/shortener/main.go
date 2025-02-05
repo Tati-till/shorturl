@@ -4,14 +4,10 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"net/http"
+	"shorturl/internal/config"
 
 	"github.com/go-chi/chi/v5"
 	store "shorturl/internal/storage"
-)
-
-const (
-	host = "http://localhost"
-	port = ":8080"
 )
 
 func init() {
@@ -25,7 +21,9 @@ func init() {
 var storageURLs store.Store
 
 func main() {
-	err := http.ListenAndServe(port, mainRouter())
+	config.ParseFlags()
+	conf := config.GetConfig()
+	err := http.ListenAndServe(conf.RunAddr, mainRouter())
 	if err != nil {
 		panic(err)
 	}

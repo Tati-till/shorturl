@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"shorturl/internal/config"
 )
 
 func Test_mainHandler(t *testing.T) {
@@ -163,6 +164,7 @@ func Test_mainHandler(t *testing.T) {
 		},
 	}
 
+	config.ParseFlags()
 	ts := httptest.NewServer(mainRouter())
 
 	for _, test := range tests {

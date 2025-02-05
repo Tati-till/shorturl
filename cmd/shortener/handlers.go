@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"shorturl/internal/config"
 )
 
 func generateURL(res http.ResponseWriter, req *http.Request) {
@@ -29,7 +30,9 @@ func generateURL(res http.ResponseWriter, req *http.Request) {
 
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusCreated)
-	body := fmt.Sprintf("%s%s/%s", host, port, hash)
+
+	conf := config.GetConfig()
+	body := fmt.Sprintf("%s/%s", conf.ResAddr, hash)
 	_, err = res.Write([]byte(body))
 	if err != nil {
 		http.Error(res, "Failed to write response", http.StatusInternalServerError)
