@@ -4,9 +4,11 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"net/http"
-	"shorturl/internal/config"
 
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
+	"shorturl/internal/config"
+	"shorturl/internal/logger"
 	store "shorturl/internal/storage"
 )
 
@@ -21,9 +23,17 @@ func init() {
 var storageURLs store.Store
 
 func main() {
+	err := logger.Initialize("Info")
+	if err != nil {
+		panic(err)
+	}
+
 	config.ParseFlags()
 	conf := config.GetConfig()
-	err := http.ListenAndServe(conf.RunAddr, mainRouter())
+
+	logger.Log.Info("Running server", zap.String("address", conf.RunAddr))
+
+	err = http.ListenAndServe(conf.RunAddr, mainRouter())
 	if err != nil {
 		panic(err)
 	}
@@ -43,9 +53,9 @@ func mainRouter() chi.Router {
 	})
 
 	r.Route("/", func(r chi.Router) {
-		r.Post("/", generateURL) // POST /
+		r.Post("/", logger.WithLogging(generateURL)) // POST /
 		r.Route("/{id}", func(r chi.Router) {
-			r.Get("/", getURL) // GET /EwHXdJfB
+			r.Get("/", logger.WithLogging(getURL)) // GET /EwHXdJfB
 		})
 	})
 
