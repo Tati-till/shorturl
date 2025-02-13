@@ -133,6 +133,21 @@ func Test_mainHandler(t *testing.T) {
 			},
 		},
 		{
+			name: "negative POST: wrong URL",
+			requests: []request{
+				{
+					url:    "/",
+					method: http.MethodPost,
+					data:   "://example.com",
+					want: want{
+						code:     http.StatusBadRequest,
+						response: "Invalid URL",
+						failed:   true,
+					},
+				},
+			},
+		},
+		{
 			name: "negative GET: empty path",
 			requests: []request{
 				{
