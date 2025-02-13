@@ -108,7 +108,7 @@ func Test_mainHandler(t *testing.T) {
 					method: http.MethodGet,
 					data:   "",
 					want: want{
-						code:      http.StatusBadRequest,
+						code:      http.StatusInternalServerError,
 						response:  "URL not found",
 						headerKey: "Location",
 						headerVal: "",

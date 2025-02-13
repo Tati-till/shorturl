@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 
 	"github.com/go-chi/chi/v5"
 	"shorturl/internal/config"
@@ -15,16 +16,20 @@ func generateURL(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	url, err := io.ReadAll(req.Body)
+	receivedURL, err := io.ReadAll(req.Body)
 	if err != nil {
 		http.Error(res, "Can't read body", http.StatusBadRequest)
 		return
 	}
 
-	hash := getHashFromURL(url)
-	err = storageURLs.Set(hash, string(url))
+	if !isCorrectURL(string(receivedURL)) {
+		http.Error(res, "Invalid URL", http.StatusBadRequest)
+	}
+
+	hash := getHashFromURL(receivedURL)
+	err = storageURLs.Set(hash, string(receivedURL))
 	if err != nil {
-		http.Error(res, err.Error(), http.StatusBadRequest)
+		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -35,8 +40,7 @@ func generateURL(res http.ResponseWriter, req *http.Request) {
 	body := fmt.Sprintf("%s/%s", conf.ResAddr, hash)
 	_, err = res.Write([]byte(body))
 	if err != nil {
-		http.Error(res, "Failed to write response", http.StatusInternalServerError)
-		return
+		fmt.Println("Failed to write response:", err)
 	}
 }
 
@@ -48,12 +52,17 @@ func getURL(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	url, err := storageURLs.Get(id)
+	storedURL, err := storageURLs.Get(id)
 	if err != nil {
-		http.Error(res, "URL not found", http.StatusBadRequest)
+		http.Error(res, "URL not found", http.StatusInternalServerError)
 		return
 	}
 
-	res.Header().Set("Location", url)
+	res.Header().Set("Location", storedURL)
 	res.WriteHeader(http.StatusTemporaryRedirect)
+}
+
+func isCorrectURL(s string) bool {
+	_, err := url.Parse(s)
+	return err == nil
 }
