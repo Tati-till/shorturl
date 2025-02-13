@@ -24,6 +24,7 @@ func generateURL(res http.ResponseWriter, req *http.Request) {
 
 	if !isCorrectURL(string(receivedURL)) {
 		http.Error(res, "Invalid URL", http.StatusBadRequest)
+		return
 	}
 
 	hash := getHashFromURL(receivedURL)
