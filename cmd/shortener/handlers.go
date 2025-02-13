@@ -27,6 +27,7 @@ func mainHandler(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 
+		res.Header().Set("Content-Type", "text/plain")
 		res.WriteHeader(http.StatusCreated)
 		body := fmt.Sprintf("%s%s/%s", host, port, hash)
 		_, err = res.Write([]byte(body))
@@ -37,7 +38,7 @@ func mainHandler(res http.ResponseWriter, req *http.Request) {
 
 	case http.MethodGet:
 		input := req.URL.Path
-		if len(input) > 0 && input[0] == '/' {
+		if len(input) > 1 && input[0] == '/' {
 			input = input[1:]
 		} else {
 			http.Error(res, "Wrong input URL", http.StatusBadRequest)
