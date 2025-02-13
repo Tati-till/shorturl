@@ -30,7 +30,7 @@ func Test_mainHandler(t *testing.T) {
 		requests []request
 	}{
 		{
-			name: "positive POST&GET",
+			name: "positive POST&GET yandex",
 			requests: []request{
 				{
 					url:    "/",
@@ -59,6 +59,35 @@ func Test_mainHandler(t *testing.T) {
 			},
 		},
 		{
+			name: "positive POST&GET google",
+			requests: []request{
+				{
+					url:    "/",
+					method: http.MethodPost,
+					data:   "https://www.google.com/",
+					want: want{
+						code:      http.StatusCreated,
+						response:  "http://localhost:8080/0OGWoMJd",
+						headerKey: "Content-Type",
+						headerVal: "text/plain",
+						failed:    false,
+					},
+				},
+				{
+					url:    "/0OGWoMJd",
+					method: http.MethodGet,
+					data:   "",
+					want: want{
+						code:      http.StatusTemporaryRedirect,
+						response:  "",
+						headerKey: "Location",
+						headerVal: "https://www.google.com/",
+						failed:    false,
+					},
+				},
+			},
+		},
+		{
 			name: "positive POST, negative GET",
 			requests: []request{
 				{
@@ -79,7 +108,7 @@ func Test_mainHandler(t *testing.T) {
 					data:   "",
 					want: want{
 						code:      http.StatusBadRequest,
-						response:  "can't find related URL wrong in storage",
+						response:  "URL not found",
 						headerKey: "Location",
 						headerVal: "",
 						failed:    true,
@@ -96,7 +125,7 @@ func Test_mainHandler(t *testing.T) {
 					data:   "https://practicum.yandex.ru/",
 					want: want{
 						code:     http.StatusBadRequest,
-						response: "Wrong request path",
+						response: "Bad Request",
 						failed:   true,
 					},
 				},
@@ -111,7 +140,7 @@ func Test_mainHandler(t *testing.T) {
 					data:   "",
 					want: want{
 						code:     http.StatusBadRequest,
-						response: "Wrong input URL",
+						response: "Bad Request",
 						failed:   true,
 					},
 				},
@@ -125,41 +154,53 @@ func Test_mainHandler(t *testing.T) {
 					method: http.MethodPut,
 					data:   "",
 					want: want{
-						code:     http.StatusMethodNotAllowed,
-						response: "Only POST requests are allowed!",
+						code:     http.StatusBadRequest,
+						response: "Bad Request",
 						failed:   true,
 					},
 				},
 			},
 		},
 	}
+
+	ts := httptest.NewServer(mainRouter())
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			for _, r := range test.requests {
 				t.Run(r.method, func(t *testing.T) {
-					var req *http.Request
+					var (
+						req *http.Request
+						err error
+					)
 					if r.data != "" {
-						req = httptest.NewRequest(r.method, r.url, strings.NewReader(r.data))
+						req, err = http.NewRequest(r.method, ts.URL+r.url, strings.NewReader(r.data))
 					} else {
-						req = httptest.NewRequest(r.method, r.url, nil)
+						req, err = http.NewRequest(r.method, ts.URL+r.url, nil)
+					}
+					require.NoError(t, err)
+
+					client := ts.Client()
+					client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+						return http.ErrUseLastResponse // Prevents following redirects
 					}
 
-					// создаём новый Recorder
-					w := httptest.NewRecorder()
-					mainHandler(w, req)
+					res, err := client.Do(req)
+					require.NoError(t, err)
 
-					res := w.Result()
 					// проверяем код ответа
 					assert.Equal(t, r.want.code, res.StatusCode)
+
 					// получаем и проверяем тело запроса
 					defer func() {
 						if err := res.Body.Close(); err != nil {
 							require.NoError(t, err)
 						}
 					}()
-					resBody, err := io.ReadAll(res.Body)
 
+					resBody, err := io.ReadAll(res.Body)
 					require.NoError(t, err)
+
 					if r.want.failed {
 						assert.Equal(t, r.want.response, strings.TrimSpace(string(resBody)))
 					} else {
