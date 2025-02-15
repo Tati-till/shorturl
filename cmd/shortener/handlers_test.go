@@ -177,6 +177,65 @@ func Test_mainHandler(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "positive POST&GET JSON",
+			requests: []request{
+				{
+					url:    "/api/shorten",
+					method: http.MethodPost,
+					data:   `{"url":"https://practicum.yandex.ru"}`,
+					want: want{
+						code:      http.StatusCreated,
+						response:  `{"result":"http://localhost:8080/ipkjUVtE"}`,
+						headerKey: "Content-Type",
+						headerVal: "application/json",
+						failed:    false,
+					},
+				},
+				{
+					url:    "/ipkjUVtE",
+					method: http.MethodGet,
+					data:   "",
+					want: want{
+						code:      http.StatusTemporaryRedirect,
+						response:  "",
+						headerKey: "Location",
+						headerVal: "https://practicum.yandex.ru",
+						failed:    false,
+					},
+				},
+			},
+		},
+		{
+			name: "negative POST, empty url",
+			requests: []request{
+				{
+					url:    "/api/shorten",
+					method: http.MethodPost,
+					data:   `{"url":""}`,
+					want: want{
+						code:     http.StatusBadRequest,
+						response: "Invalid URL",
+						failed:   true,
+					},
+				},
+			},
+		},
+		{
+			name: "negative POST, empty JSON",
+			requests: []request{
+				{
+					url:    "/api/shorten",
+					method: http.MethodPost,
+					data:   `{}`,
+					want: want{
+						code:     http.StatusBadRequest,
+						response: "Invalid URL",
+						failed:   true,
+					},
+				},
+			},
+		},
 	}
 
 	config.ParseFlags()

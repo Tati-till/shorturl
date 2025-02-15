@@ -57,6 +57,9 @@ func mainRouter() chi.Router {
 		r.Route("/{id}", func(r chi.Router) {
 			r.Get("/", logger.WithLogging(getURL)) // GET /EwHXdJfB
 		})
+		r.Route("/api/shorten", func(r chi.Router) {
+			r.Post("/", logger.WithLogging(genURLinJSON))
+		})
 	})
 
 	return r
