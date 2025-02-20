@@ -6,10 +6,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"shorturl/internal/models"
 
 	"github.com/go-chi/chi/v5"
 	"shorturl/internal/config"
+	"shorturl/internal/models"
 )
 
 func genURLinJSON(res http.ResponseWriter, req *http.Request) {

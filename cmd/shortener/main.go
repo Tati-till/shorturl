@@ -3,10 +3,10 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"go.uber.org/zap"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"go.uber.org/zap"
 	"shorturl/internal/config"
 	"shorturl/internal/logger"
 	store "shorturl/internal/storage"
@@ -53,12 +53,12 @@ func mainRouter() chi.Router {
 	})
 
 	r.Route("/", func(r chi.Router) {
-		r.Post("/", logger.WithLogging(generateURL)) // POST /
+		r.Post("/", logger.WithLogging(gzipMiddleware(generateURL))) // POST /
 		r.Route("/{id}", func(r chi.Router) {
-			r.Get("/", logger.WithLogging(getURL)) // GET /EwHXdJfB
+			r.Get("/", logger.WithLogging(gzipMiddleware(getURL))) // GET /EwHXdJfB
 		})
 		r.Route("/api/shorten", func(r chi.Router) {
-			r.Post("/", logger.WithLogging(genURLinJSON))
+			r.Post("/", logger.WithLogging(gzipMiddleware(genURLinJSON)))
 		})
 	})
 
