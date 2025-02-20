@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -133,6 +135,21 @@ func Test_mainHandler(t *testing.T) {
 			},
 		},
 		{
+			name: "negative POST: wrong URL",
+			requests: []request{
+				{
+					url:    "/",
+					method: http.MethodPost,
+					data:   "://example.com",
+					want: want{
+						code:     http.StatusBadRequest,
+						response: "Invalid URL",
+						failed:   true,
+					},
+				},
+			},
+		},
+		{
 			name: "negative GET: empty path",
 			requests: []request{
 				{
@@ -162,10 +179,71 @@ func Test_mainHandler(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "positive POST&GET JSON",
+			requests: []request{
+				{
+					url:    "/api/shorten",
+					method: http.MethodPost,
+					data:   `{"url":"https://practicum.yandex.ru"}`,
+					want: want{
+						code:      http.StatusCreated,
+						response:  `{"result":"http://localhost:8080/ipkjUVtE"}`,
+						headerKey: "Content-Type",
+						headerVal: "application/json",
+						failed:    false,
+					},
+				},
+				{
+					url:    "/ipkjUVtE",
+					method: http.MethodGet,
+					data:   "",
+					want: want{
+						code:      http.StatusTemporaryRedirect,
+						response:  "",
+						headerKey: "Location",
+						headerVal: "https://practicum.yandex.ru",
+						failed:    false,
+					},
+				},
+			},
+		},
+		{
+			name: "negative POST, empty url",
+			requests: []request{
+				{
+					url:    "/api/shorten",
+					method: http.MethodPost,
+					data:   `{"url":""}`,
+					want: want{
+						code:     http.StatusBadRequest,
+						response: "Invalid URL",
+						failed:   true,
+					},
+				},
+			},
+		},
+		{
+			name: "negative POST, empty JSON",
+			requests: []request{
+				{
+					url:    "/api/shorten",
+					method: http.MethodPost,
+					data:   `{}`,
+					want: want{
+						code:     http.StatusBadRequest,
+						response: "Invalid URL",
+						failed:   true,
+					},
+				},
+			},
+		},
 	}
 
 	config.ParseFlags()
 	ts := httptest.NewServer(mainRouter())
+
+	defer ts.Close()
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -213,4 +291,58 @@ func Test_mainHandler(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("sends_gzip_json", func(t *testing.T) {
+		// We are expecting `successBody` after sending `requestBody`
+		requestBody := `{"url":"https://practicum.yandex.ru"}`
+		successBody := `{"result":"http://localhost:8080/ipkjUVtE"}`
+
+		buf := bytes.NewBuffer(nil)
+		zb := gzip.NewWriter(buf)
+		_, err := zb.Write([]byte(requestBody))
+		require.NoError(t, err)
+		err = zb.Close()
+		require.NoError(t, err)
+
+		r := httptest.NewRequest("POST", ts.URL+"/api/shorten", buf)
+		r.RequestURI = ""
+		r.Header.Set("Content-Encoding", "gzip")
+		r.Header.Set("Accept-Encoding", "")
+
+		resp, err := http.DefaultClient.Do(r)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusCreated, resp.StatusCode)
+
+		defer resp.Body.Close()
+
+		b, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.JSONEq(t, successBody, string(b))
+	})
+	t.Run("sends_gzip", func(t *testing.T) {
+		requestBody := "https://practicum.yandex.ru"
+		successBody := "http://localhost:8080/ipkjUVtE"
+
+		buf := bytes.NewBuffer(nil)
+		zb := gzip.NewWriter(buf)
+		_, err := zb.Write([]byte(requestBody))
+		require.NoError(t, err)
+		err = zb.Close()
+		require.NoError(t, err)
+
+		r := httptest.NewRequest("POST", ts.URL+"/", buf)
+		r.RequestURI = ""
+		r.Header.Set("Content-Encoding", "gzip")
+		r.Header.Set("Accept-Encoding", "")
+
+		resp, err := http.DefaultClient.Do(r)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusCreated, resp.StatusCode)
+
+		defer resp.Body.Close()
+
+		b, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.Equal(t, successBody, string(b))
+	})
 }
