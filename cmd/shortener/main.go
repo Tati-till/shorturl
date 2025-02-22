@@ -3,24 +3,21 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	"go.uber.org/zap"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 	"shorturl/internal/config"
 	"shorturl/internal/logger"
 	store "shorturl/internal/storage"
+	"shorturl/internal/storage/file"
 )
 
-func init() {
-	var err error
-	storageURLs, err = store.NewStore()
-	if err != nil {
-		panic(err)
-	}
-}
-
-var storageURLs store.Store
+var (
+	storageURLs store.Store
+	producer    *file.Producer
+	consumer    *file.Consumer
+)
 
 func main() {
 	err := logger.Initialize("Info")
@@ -31,11 +28,53 @@ func main() {
 	config.ParseFlags()
 	conf := config.GetConfig()
 
+	logger.Log.Info("Reading stored data", zap.String("file", conf.FileStoragePath))
+	initStorage(conf)
+
+	// Close producer and consumer.
+	defer func(Producer *file.Producer) {
+		err := Producer.Close()
+		if err != nil {
+			logger.Log.Error("Closing producer", zap.Error(err))
+		}
+	}(producer)
+	defer func(Consumer *file.Consumer) {
+		err := Consumer.Close()
+		if err != nil {
+			logger.Log.Error("Closing consumer", zap.Error(err))
+
+		}
+	}(consumer)
+
 	logger.Log.Info("Running server", zap.String("address", conf.RunAddr))
 
 	err = http.ListenAndServe(conf.RunAddr, mainRouter())
 	if err != nil {
 		panic(err)
+	}
+}
+
+func initStorage(conf *config.Config) {
+	var err error
+
+	producer, err = file.NewProducer(conf.FileStoragePath)
+	if err != nil {
+		logger.Log.Fatal("Creating producer", zap.Error(err))
+	}
+
+	consumer, err = file.NewConsumer(conf.FileStoragePath)
+	if err != nil {
+		logger.Log.Fatal("Creating consumer", zap.Error(err))
+	}
+
+	storageURLs, err = store.NewStore(consumer, producer)
+	if err != nil {
+		logger.Log.Fatal("New storage", zap.Error(err))
+	}
+
+	err = storageURLs.Load()
+	if err != nil {
+		logger.Log.Error("Load storage", zap.Error(err))
 	}
 }
 

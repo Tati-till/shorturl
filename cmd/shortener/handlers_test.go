@@ -241,6 +241,17 @@ func Test_mainHandler(t *testing.T) {
 	}
 
 	config.ParseFlags()
+	conf := config.GetConfig()
+	initStorage(conf)
+	defer func() {
+		if producer != nil {
+			_ = producer.Close()
+		}
+		if consumer != nil {
+			_ = consumer.Close()
+		}
+	}()
+
 	ts := httptest.NewServer(mainRouter())
 
 	defer ts.Close()
