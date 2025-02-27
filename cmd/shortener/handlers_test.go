@@ -12,6 +12,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"shorturl/internal/config"
+	"shorturl/internal/handlers"
+	"shorturl/internal/storage/file"
+	"shorturl/internal/storage/memory"
 )
 
 func Test_mainHandler(t *testing.T) {
@@ -242,17 +245,20 @@ func Test_mainHandler(t *testing.T) {
 
 	config.ParseFlags()
 	conf := config.GetConfig()
-	initStorage(conf)
-	defer func() {
-		if producer != nil {
-			_ = producer.Close()
-		}
-		if consumer != nil {
-			_ = consumer.Close()
-		}
-	}()
 
-	ts := httptest.NewServer(mainRouter())
+	producer, err := file.NewProducer(conf.FileStoragePath)
+	require.NoError(t, err)
+	defer producer.Close()
+
+	consumer, err := file.NewConsumer(conf.FileStoragePath)
+	require.NoError(t, err)
+	defer consumer.Close()
+
+	// Create storage and inject into handlers.
+	storage := memory.NewStore(consumer, producer)
+	handler := handlers.NewHandler(storage)
+
+	ts := httptest.NewServer(mainRouter(handler))
 
 	defer ts.Close()
 

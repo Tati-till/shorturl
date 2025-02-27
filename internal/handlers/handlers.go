@@ -1,6 +1,8 @@
-package main
+package handlers
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,11 +10,26 @@ import (
 	"net/url"
 
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 	"shorturl/internal/config"
+	"shorturl/internal/logger"
 	"shorturl/internal/models"
 )
 
-func genURLinJSON(res http.ResponseWriter, req *http.Request) {
+type Storage interface {
+	Get(key string) (string, error)
+	Set(key, value string) error
+}
+
+type Handler struct {
+	storage Storage
+}
+
+func NewHandler(storage Storage) *Handler {
+	return &Handler{storage: storage}
+}
+
+func (h *Handler) GenURLinJSON(res http.ResponseWriter, req *http.Request) {
 	received, err := io.ReadAll(req.Body)
 	if err != nil {
 		http.Error(res, fmt.Sprintf("Can't read body: %s", err.Error()), http.StatusBadRequest)
@@ -31,7 +48,7 @@ func genURLinJSON(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	hash, err := generator(receivedReq.URL)
+	hash, err := h.generator(receivedReq.URL)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
@@ -49,13 +66,13 @@ func genURLinJSON(res http.ResponseWriter, req *http.Request) {
 
 	_, err = res.Write(resJSON)
 	if err != nil {
-		fmt.Println("Failed to write response:", err)
+		logger.Log.Error("Failed to write response", zap.Error(err))
 	}
 }
 
-func generator(url string) (string, error) {
+func (h *Handler) generator(url string) (string, error) {
 	hash := getHashFromURL([]byte(url))
-	err := storageURLs.Set(hash, string(url))
+	err := h.storage.Set(hash, string(url))
 	if err != nil {
 		return "", err
 	}
@@ -64,7 +81,7 @@ func generator(url string) (string, error) {
 	return fmt.Sprintf("%s/%s", conf.ResAddr, hash), nil
 }
 
-func generateURL(res http.ResponseWriter, req *http.Request) {
+func (h *Handler) GenerateURL(res http.ResponseWriter, req *http.Request) {
 	if req.URL.Path != "/" {
 		http.Error(res, "Wrong request path", http.StatusBadRequest)
 		return
@@ -82,7 +99,7 @@ func generateURL(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	resURL, err := generator(strURL)
+	resURL, err := h.generator(strURL)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
@@ -97,7 +114,7 @@ func generateURL(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func getURL(res http.ResponseWriter, req *http.Request) {
+func (h *Handler) GetURL(res http.ResponseWriter, req *http.Request) {
 	id := chi.URLParam(req, "id")
 
 	if id == "" {
@@ -105,7 +122,7 @@ func getURL(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	storedURL, err := storageURLs.Get(id)
+	storedURL, err := h.storage.Get(id)
 	if err != nil {
 		http.Error(res, "URL not found", http.StatusInternalServerError)
 		return
@@ -118,4 +135,15 @@ func getURL(res http.ResponseWriter, req *http.Request) {
 func isCorrectURL(s string) bool {
 	_, err := url.Parse(s)
 	return err == nil
+}
+
+func getHashFromURL(url []byte) string {
+	hasher := sha256.New()
+	hasher.Write(url)
+	hashBytes := hasher.Sum(nil)
+
+	// Encode the first 6 bytes of the hash to base64
+	// 6 bytes are chosen to ensure that the base64 encoded string is at least 8 characters long
+	shortHash := base64.RawURLEncoding.EncodeToString(hashBytes[:6])
+	return shortHash
 }

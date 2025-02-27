@@ -1,4 +1,4 @@
-package main
+package middleware
 
 import (
 	"compress/gzip"
@@ -73,7 +73,7 @@ func (c *compressReader) Close() error {
 	return c.zr.Close()
 }
 
-func gzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
+func GzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// original http.ResponseWriter by default
 		ow := w
