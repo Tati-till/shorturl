@@ -15,14 +15,14 @@ import (
 func genURLinJSON(res http.ResponseWriter, req *http.Request) {
 	received, err := io.ReadAll(req.Body)
 	if err != nil {
-		http.Error(res, "Can't read body", http.StatusBadRequest)
+		http.Error(res, fmt.Sprintf("Can't read body: %s", err.Error()), http.StatusBadRequest)
 		return
 	}
 
 	var receivedReq models.Request
 	err = json.Unmarshal(received, &receivedReq)
 	if err != nil {
-		http.Error(res, "Can't read body", http.StatusBadRequest)
+		http.Error(res, fmt.Sprintf("Can't unmarshal body: %s", err.Error()), http.StatusBadRequest)
 		return
 	}
 
