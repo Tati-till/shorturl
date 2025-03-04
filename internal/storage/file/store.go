@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"os"
+	"sync"
 )
 
 type Record struct {
@@ -14,6 +15,7 @@ type Record struct {
 
 type Producer struct {
 	file *os.File
+	mu   sync.Mutex
 }
 
 func NewProducer(filename string) (*Producer, error) {
@@ -36,6 +38,9 @@ func (p *Producer) WriteRecord(record *Record) error {
 		return err
 	}
 	data = append(data, '\n')
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	_, err = p.file.Write(data)
 	return err
