@@ -43,7 +43,7 @@ func (h *Handler) GenURLinJSON(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if receivedReq.URL == "" {
+	if !isCorrectURL(receivedReq.URL) {
 		http.Error(res, "Invalid URL", http.StatusBadRequest)
 		return
 	}
@@ -133,6 +133,9 @@ func (h *Handler) GetURL(res http.ResponseWriter, req *http.Request) {
 }
 
 func isCorrectURL(s string) bool {
+	if s == "" {
+		return false
+	}
 	_, err := url.Parse(s)
 	return err == nil
 }
