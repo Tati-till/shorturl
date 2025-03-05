@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 	"shorturl/internal/config"
+	"shorturl/internal/hash"
 	"shorturl/internal/logger"
 	"shorturl/internal/models"
 )
@@ -48,13 +47,13 @@ func (h *Handler) GenURLinJSON(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	hash, err := h.generator(receivedReq.URL)
+	hashed, err := h.generator(receivedReq.URL)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	resp := models.Response{Result: hash}
+	resp := models.Response{Result: hashed}
 	resJSON, err := json.Marshal(resp)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
@@ -71,14 +70,14 @@ func (h *Handler) GenURLinJSON(res http.ResponseWriter, req *http.Request) {
 }
 
 func (h *Handler) generator(url string) (string, error) {
-	hash := getHashFromURL([]byte(url))
-	err := h.storage.Set(hash, string(url))
+	hashed := hash.GetHashFromURL([]byte(url))
+	err := h.storage.Set(hashed, url)
 	if err != nil {
 		return "", err
 	}
 
 	conf := config.GetConfig()
-	return fmt.Sprintf("%s/%s", conf.ResAddr, hash), nil
+	return fmt.Sprintf("%s/%s", conf.ResAddr, hashed), nil
 }
 
 func (h *Handler) GenerateURL(res http.ResponseWriter, req *http.Request) {
@@ -138,15 +137,4 @@ func isCorrectURL(s string) bool {
 	}
 	_, err := url.Parse(s)
 	return err == nil
-}
-
-func getHashFromURL(url []byte) string {
-	hasher := sha256.New()
-	hasher.Write(url)
-	hashBytes := hasher.Sum(nil)
-
-	// Encode the first 6 bytes of the hash to base64
-	// 6 bytes are chosen to ensure that the base64 encoded string is at least 8 characters long
-	shortHash := base64.RawURLEncoding.EncodeToString(hashBytes[:6])
-	return shortHash
 }
