@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
@@ -13,6 +12,7 @@ import (
 	"shorturl/internal/hash"
 	"shorturl/internal/logger"
 	"shorturl/internal/models"
+	"shorturl/internal/validation"
 )
 
 type Storage interface {
@@ -42,7 +42,7 @@ func (h *Handler) GenURLinJSON(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if !isCorrectURL(receivedReq.URL) {
+	if !validation.IsCorrectURL(receivedReq.URL) {
 		http.Error(res, "Invalid URL", http.StatusBadRequest)
 		return
 	}
@@ -93,7 +93,7 @@ func (h *Handler) GenerateURL(res http.ResponseWriter, req *http.Request) {
 	}
 
 	strURL := string(receivedURL)
-	if !isCorrectURL(strURL) {
+	if !validation.IsCorrectURL(strURL) {
 		http.Error(res, "Invalid URL", http.StatusBadRequest)
 		return
 	}
@@ -129,12 +129,4 @@ func (h *Handler) GetURL(res http.ResponseWriter, req *http.Request) {
 
 	res.Header().Set("Location", storedURL)
 	res.WriteHeader(http.StatusTemporaryRedirect)
-}
-
-func isCorrectURL(s string) bool {
-	if s == "" {
-		return false
-	}
-	_, err := url.Parse(s)
-	return err == nil
 }
