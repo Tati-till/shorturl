@@ -80,12 +80,12 @@ func mainRouter(h *handlers.Handler) chi.Router {
 	})
 
 	r.Route("/", func(r chi.Router) {
-		r.Post("/", logger.WithLogging(middleware.GzipMiddleware(h.GenerateURL))) // POST /
+		r.Post("/", middleware.WithLogging(middleware.GzipMiddleware(h.GenerateURL))) // POST /
 		r.Route("/{id}", func(r chi.Router) {
-			r.Get("/", logger.WithLogging(middleware.GzipMiddleware(h.GetURL))) // GET /EwHXdJfB
+			r.Get("/", middleware.WithLogging(middleware.GzipMiddleware(h.GetURL))) // GET /EwHXdJfB
 		})
 		r.Route("/api/shorten", func(r chi.Router) {
-			r.Post("/", logger.WithLogging(middleware.GzipMiddleware(h.GenURLinJSON)))
+			r.Post("/", middleware.WithLogging(middleware.GzipMiddleware(h.GenURLinJSON)))
 		})
 	})
 
